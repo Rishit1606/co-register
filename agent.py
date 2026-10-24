@@ -230,6 +230,14 @@ class Agent:
             self.relax_to(msg.payload["level"])
         return None
 
+    def recheck(self, declined: list[str], to: str, round: int = 0) -> list[Message]:
+        """After a relaxation: ACCEPT any section I declined earlier but could take now.
+
+        Reveals nothing new: re-proposing the section would show the same flip.
+        """
+        return [self._send(to, MessageType.ACCEPT, {"section_id": sid}, round)
+                for sid in declined if self.plan(sid) is not None]
+
     def call_relax(self, level: int, round: int = 0) -> Message:
         """Lead the group into relaxation `level` (relaxing my own prefs too)."""
         self.relax_to(level)

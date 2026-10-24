@@ -28,14 +28,14 @@ def test_when_groups_days_and_marks_labs():
 def test_trade_wording_from_each_point_of_view():
     names = {"ana": "Ana", "priya": "Priya"}
     t = Trade("priya", "PHIL215-04", "ana")
-    assert trade(t, names) == "Priya gives their PHIL215-04 seat to Ana"
-    assert trade(t, names, viewer="ana") == "Priya gives their PHIL215-04 seat to you"
+    assert trade(t, names) == "Priya gives a PHIL215-04 seat to Ana"
+    assert trade(t, names, viewer="ana") == "Priya gives a PHIL215-04 seat to you"
     assert trade(Trade("ana", "MATH220-01", "priya"), names, viewer="ana") == "You give your MATH220-01 seat to Priya"
 
 
 def test_narrate_decline_never_adds_a_reason():
     entry = LogEntry(1, 1, "ben", "ana", "DECLINE", ["section_id"], {"section_id": "PHIL215-04"})
-    assert narrate(entry, {"ben": "Ben"}, {}) == "    Ben's agent: decline (no reason shared)"
+    assert narrate(entry, {"ben": "Ben"}, {}) == "    Ben's agent: declines PHIL215-04 (no reason shared)"
 
 
 # ---- LLM guard -------------------------------------------------------------

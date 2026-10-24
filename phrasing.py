@@ -59,8 +59,8 @@ def join_names(names: list[str]) -> str:
 
 
 def trade(t, names: dict[str, str], viewer: str | None = None) -> str:
-    """'Priya gives her PHIL215-04 seat to you' (viewer = whose briefing this is)."""
-    giver = "You give your" if t.giver == viewer else f"{names.get(t.giver, t.giver)} gives their"
+    """'Priya gives a PHIL215-04 seat to you' (viewer = whose briefing this is)."""
+    giver = "You give your" if t.giver == viewer else f"{names.get(t.giver, t.giver)} gives a"
     receiver = "you" if t.receiver == viewer else names.get(t.receiver, t.receiver)
     return f"{giver} {t.section_id} seat to {receiver}"
 
@@ -84,7 +84,7 @@ def narrate(entry, names: dict[str, str], sections: dict[str, Section]) -> str |
     if entry.type == "RELAX":
         return (f"[round {entry.round}] Nobody has a section left that works for everyone. {agent} calls "
                 f"relaxation level {p['level']}: each agent may privately drop its least important "
-                f"preferences. Nobody says which.")
+                f"preferences. Nobody says which. Agents re-check the sections they declined.")
     if entry.type == "SWAP_OFFER":
         to = names.get(entry.recipient, entry.recipient)
         return f"{agent} offers {to} a trade: give {p['give_section']}, get {p['want_section']}"
@@ -94,9 +94,9 @@ def narrate(entry, names: dict[str, str], sections: dict[str, Section]) -> str |
         return (f"✔ {who} confirmed {sec}" if entry.type == "ACCEPT"
                 else f"✘ {who} said no to {sec} (no reason shared)")
     if entry.type == "ACCEPT":
-        return f"    {agent}: accept"
+        return f"    {agent}: accepts {sec}"
     if entry.type == "DECLINE":
-        return f"    {agent}: decline (no reason shared)"
+        return f"    {agent}: declines {sec} (no reason shared)"
     return None
 
 

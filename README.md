@@ -70,7 +70,9 @@ The agents take turns proposing (Ana: 01, Ben: 02, Maya: 04), and each proposal 
 declined *with no reason given*. Once nobody has anything left to propose, the lead agent
 broadcasts `RELAX {level: 1}`. Every agent privately relaxes its own preferences of
 priority 1. Only Ben has one: "Fridays off". The other agents never learn whose preference
-it was or what it was. On the next pass, everyone accepts **PHIL215-04**. Ben's private
+it was or what it was. Agents then re-check the sections they turned down: Ben's agent
+now accepts 04, sections someone still declines are never proposed again, and one more
+proposal settles on **PHIL215-04**. Ben's private
 briefing says exactly what Ben's agent gave up. The friends' briefings don't mention it.
 
 Each agent's solver plans its student's whole week around the shared section (backtracking,

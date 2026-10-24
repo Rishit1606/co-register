@@ -4,7 +4,9 @@ Each turn the next agent proposes its own best untried section (PROPOSE, then
 COUNTER); the others ACCEPT or DECLINE with no reason. When every agent has run out
 of sections to propose, the lead agent broadcasts RELAX {level}: every agent
 privately relaxes its soft prefs with priority <= level (shared scale 1..MAX_LEVEL),
-so the lowest-priority prefs go first without anyone revealing priorities. If even
+so the lowest-priority prefs go first without anyone revealing priorities. Agents
+then re-check the sections they declined and ACCEPT any they now can; a section
+someone still declines is not proposed again. If even
 MAX_LEVEL doesn't produce agreement, every agent escalates to its own human.
 """
 
@@ -64,6 +66,7 @@ def negotiate(agents: list[Agent], bus: MessageBus, shared_courses: list[SharedC
     turn = 0
     rnd = start_round
     accepts: Counter[str] = Counter()  # public tally: how many said yes to each section
+    declined_by: dict[str, set[str]] = {}  # public: who has said no to each section (and not since yes)
 
     def relaxed() -> dict[str, list[str]]:
         return {a.id: a.relaxed() for a in agents if a.relaxed()}
@@ -74,9 +77,17 @@ def negotiate(agents: list[Agent], bus: MessageBus, shared_courses: list[SharedC
             lead = agents[turn % n]
             bus.send(lead.call_relax(level, round=rnd))
             _deliver(agents, bus, skip=lead.id)
+            for a in agents:
+                mine = sorted(sid for sid, who in declined_by.items() if a.id in who)
+                for msg in a.recheck(mine, to=lead.id, round=rnd):
+                    bus.send(msg)
+                    declined_by[msg.payload["section_id"]].discard(a.id)
+            for a in agents:
+                bus.receive(a.id)  # re-check answers are already tallied above
 
         for course in shared_courses:
-            tried = set(excluded)
+            # Skip sections someone has declined and not re-accepted: they would just fail again.
+            tried = set(excluded) | {sid for sid, who in declined_by.items() if who}
             passes = 0
             first = True
             while passes < n:
@@ -92,8 +103,9 @@ def negotiate(agents: list[Agent], bus: MessageBus, shared_courses: list[SharedC
                 bus.send(proposer.propose(sid, round=rnd, counter=not first))
                 first = False
                 _deliver(agents, bus, skip=proposer.id)
-                yes = [m for m in bus.receive(proposer.id)
-                       if m.type is MessageType.ACCEPT and m.payload["section_id"] == sid]
+                replies = [m for m in bus.receive(proposer.id) if m.payload.get("section_id") == sid]
+                yes = [m for m in replies if m.type is MessageType.ACCEPT]
+                declined_by[sid] = {m.sender for m in replies if m.type is MessageType.DECLINE}
                 accepts[sid] = len(yes) + 1  # the proposer counts as a yes
                 if len(yes) == n - 1:
                     need = sum(1 for a in agents if not a.holds(sid))
