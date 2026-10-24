@@ -126,6 +126,10 @@ class Agent:
         self._relaxed.update(newly)
         return newly
 
+    def reset(self) -> None:
+        """Forget all relaxations: a re-plan starts from the student's full preferences."""
+        self._relaxed.clear()
+
     def relaxed(self) -> list[str]:
         """What this agent gave up, in words. Only for this agent's own student."""
         return [show(p) for p in self._student.soft_prefs if p in self._relaxed]
@@ -226,6 +230,11 @@ class Agent:
         """Lead the group into relaxation `level` (relaxing my own prefs too)."""
         self.relax_to(level)
         return self._send("all", MessageType.RELAX, {"level": level}, round)
+
+    def confirm(self, section_id: str, yes: bool, round: int = 0) -> Message:
+        """Tell the group my student's final answer. A "no" carries no reason."""
+        type = MessageType.ACCEPT if yes else MessageType.DECLINE
+        return self._send("all", type, {"section_id": section_id}, round)
 
     def swap_offer(self, give: str, want: str, recipient: str, round: int = 0) -> Message:
         """Offer `recipient` their part of a swap: they give `give`, they receive `want`."""

@@ -50,15 +50,19 @@ def _deliver(agents: list[Agent], bus: MessageBus, skip: str) -> None:
 
 def negotiate(agents: list[Agent], bus: MessageBus, shared_courses: list[SharedCourse],
               sections: dict[str, Section], excluded: frozenset[str] = frozenset(),
-              max_level: int = MAX_LEVEL) -> Outcome:
-    """Agree on one shared section. `excluded`: sections a student already said no to."""
+              max_level: int = MAX_LEVEL, start_round: int = 0) -> Outcome:
+    """Agree on one shared section. `excluded`: sections a student already said no to.
+
+    `start_round` continues round numbering across re-plans, so the log reads in order.
+    """
     if not shared_courses:
         return Outcome("no_shared_course")
     for a in agents:
         bus.receive(a.id)  # start from empty inboxes
 
     n = len(agents)
-    turn = rnd = 0
+    turn = 0
+    rnd = start_round
     accepts: Counter[str] = Counter()  # public tally: how many said yes to each section
 
     def relaxed() -> dict[str, list[str]]:
