@@ -1,0 +1,65 @@
+{
+  "students": [
+    {
+      "id": "ana",
+      "name": "Ana",
+      "major": "Computer Science",
+      "open_requirements": ["GEN_HUM", "CS_CORE", "CS_MATH"],
+      "busy_blocks": [
+        {"days": ["Tue", "Thu"], "start": "12:00", "end": "18:00",
+         "label": "Work: IT help desk shift at the campus library"}
+      ],
+      "hard_constraints": [
+        {"kind": "max_credits", "value": 16}
+      ],
+      "soft_prefs": [
+        {"kind": "no_before", "value": "09:00", "priority": 3}
+      ],
+      "holds": ["MATH220-01"],
+      "private": {
+        "gpa": 3.62,
+        "transcript": ["CS101:A", "CS150:A-", "MATH151:B+", "ENGL101:A", "HIST110:B"]
+      }
+    },
+    {
+      "id": "ben",
+      "name": "Ben",
+      "major": "Nursing",
+      "open_requirements": ["NURS_ETHICS", "LAB_SCI", "NURS_CORE"],
+      "busy_blocks": [
+        {"days": ["Mon"], "start": "07:00", "end": "19:00",
+         "label": "Clinicals: med-surg rotation at St. Vincent Hospital"}
+      ],
+      "hard_constraints": [
+        {"kind": "max_credits", "value": 15}
+      ],
+      "soft_prefs": [
+        {"kind": "day_off", "value": "Fri", "priority": 1}
+      ],
+      "holds": [],
+      "private": {
+        "gpa": 3.41,
+        "transcript": ["BIO110:B+", "CHEM105:B", "NURS101:A-", "PSYC100:A", "ENGL101:B+"]
+      }
+    },
+    {
+      "id": "maya",
+      "name": "Maya",
+      "major": "Business",
+      "open_requirements": ["BUS_ETHICS", "BUS_CORE", "GEN_QUANT"],
+      "busy_blocks": [],
+      "hard_constraints": [
+        {"kind": "max_credits", "value": 15},
+        {"kind": "no_after", "value": "18:00"}
+      ],
+      "soft_prefs": [
+        {"kind": "max_days", "value": 3, "priority": 2}
+      ],
+      "holds": [],
+      "private": {
+        "gpa": 3.85,
+        "transcript": ["BUS101:A", "ECON201:A-", "ACCT110:A", "ENGL101:A", "SOC100:B+"]
+      }
+    }
+  ]
+}

@@ -1,0 +1,149 @@
+{
+  "courses": [
+    {
+      "id": "PHIL215",
+      "title": "Ethics in Technology, Health & Business",
+      "credits": 3,
+      "tags": ["GEN_HUM", "NURS_ETHICS", "BUS_ETHICS"],
+      "sections": [
+        {"id": "PHIL215-01", "seats_left": 12,
+         "meetings": [{"days": ["Mon", "Wed"], "start": "10:00", "end": "11:15", "label": "Lecture"}]},
+        {"id": "PHIL215-02", "seats_left": 8,
+         "meetings": [{"days": ["Tue", "Thu"], "start": "13:00", "end": "14:15", "label": "Lecture"}]},
+        {"id": "PHIL215-03", "seats_left": 15,
+         "meetings": [{"days": ["Wed", "Fri"], "start": "08:00", "end": "09:15", "label": "Lecture"}]},
+        {"id": "PHIL215-04", "seats_left": 2,
+         "meetings": [{"days": ["Wed", "Fri"], "start": "11:00", "end": "12:15", "label": "Lecture"}]}
+      ]
+    },
+    {
+      "id": "COMM220",
+      "title": "Professional Communication & Ethics",
+      "credits": 3,
+      "tags": ["GEN_HUM", "BUS_ETHICS"],
+      "sections": [
+        {"id": "COMM220-01", "seats_left": 10,
+         "meetings": [{"days": ["Tue", "Thu"], "start": "09:30", "end": "10:45", "label": "Lecture"}]}
+      ]
+    },
+    {
+      "id": "HSCI230",
+      "title": "Health Care Ethics & Law",
+      "credits": 3,
+      "tags": ["NURS_ETHICS", "BUS_ETHICS"],
+      "sections": [
+        {"id": "HSCI230-01", "seats_left": 6,
+         "meetings": [{"days": ["Wed"], "start": "15:00", "end": "17:45", "label": "Seminar"}]}
+      ]
+    },
+    {
+      "id": "CS201",
+      "title": "Data Structures",
+      "credits": 4,
+      "tags": ["CS_CORE"],
+      "sections": [
+        {"id": "CS201-01", "seats_left": 10,
+         "meetings": [{"days": ["Mon", "Wed"], "start": "09:30", "end": "10:45", "label": "Lecture"}]},
+        {"id": "CS201-02", "seats_left": 5,
+         "meetings": [{"days": ["Tue", "Thu"], "start": "14:00", "end": "15:15", "label": "Lecture"}]}
+      ]
+    },
+    {
+      "id": "CS230",
+      "title": "Computer Systems",
+      "credits": 4,
+      "tags": ["CS_CORE"],
+      "sections": [
+        {"id": "CS230-01", "seats_left": 7,
+         "meetings": [{"days": ["Tue", "Thu"], "start": "09:30", "end": "10:45", "label": "Lecture"}]}
+      ]
+    },
+    {
+      "id": "MATH220",
+      "title": "Discrete Mathematics",
+      "credits": 3,
+      "tags": ["CS_MATH", "GEN_QUANT"],
+      "sections": [
+        {"id": "MATH220-01", "seats_left": 0,
+         "meetings": [{"days": ["Mon", "Wed", "Fri"], "start": "11:00", "end": "11:50", "label": "Lecture"}]},
+        {"id": "MATH220-02", "seats_left": 6,
+         "meetings": [{"days": ["Mon", "Wed", "Fri"], "start": "13:00", "end": "13:50", "label": "Lecture"}]}
+      ]
+    },
+    {
+      "id": "STAT200",
+      "title": "Introduction to Statistics",
+      "credits": 3,
+      "tags": ["GEN_QUANT"],
+      "sections": [
+        {"id": "STAT200-01", "seats_left": 9,
+         "meetings": [{"days": ["Mon", "Wed", "Fri"], "start": "09:00", "end": "09:50", "label": "Lecture"}]},
+        {"id": "STAT200-02", "seats_left": 12,
+         "meetings": [{"days": ["Tue", "Thu"], "start": "11:00", "end": "12:15", "label": "Lecture"}]}
+      ]
+    },
+    {
+      "id": "BIO240",
+      "title": "Microbiology with Lab",
+      "credits": 4,
+      "tags": ["LAB_SCI"],
+      "sections": [
+        {"id": "BIO240-01", "seats_left": 4,
+         "meetings": [{"days": ["Tue", "Thu"], "start": "09:00", "end": "10:15", "label": "Lecture"},
+                      {"days": ["Tue"], "start": "14:00", "end": "16:50", "label": "Lab"}]},
+        {"id": "BIO240-02", "seats_left": 0,
+         "meetings": [{"days": ["Mon", "Wed"], "start": "10:00", "end": "11:15", "label": "Lecture"},
+                      {"days": ["Wed"], "start": "14:00", "end": "16:50", "label": "Lab"}]},
+        {"id": "BIO240-03", "seats_left": 3,
+         "meetings": [{"days": ["Tue", "Thu"], "start": "16:00", "end": "17:15", "label": "Lecture"},
+                      {"days": ["Thu"], "start": "18:00", "end": "20:50", "label": "Lab"}]}
+      ]
+    },
+    {
+      "id": "NURS310",
+      "title": "Adult Health Nursing",
+      "credits": 4,
+      "tags": ["NURS_CORE"],
+      "sections": [
+        {"id": "NURS310-01", "seats_left": 6,
+         "meetings": [{"days": ["Tue", "Thu"], "start": "12:30", "end": "13:45", "label": "Lecture"}]},
+        {"id": "NURS310-02", "seats_left": 0,
+         "meetings": [{"days": ["Mon", "Wed"], "start": "13:00", "end": "14:15", "label": "Lecture"}]}
+      ]
+    },
+    {
+      "id": "NURS320",
+      "title": "Pharmacology for Nurses",
+      "credits": 3,
+      "tags": ["NURS_CORE"],
+      "sections": [
+        {"id": "NURS320-01", "seats_left": 8,
+         "meetings": [{"days": ["Wed"], "start": "14:00", "end": "16:45", "label": "Lecture"}]}
+      ]
+    },
+    {
+      "id": "BUS250",
+      "title": "Principles of Marketing",
+      "credits": 3,
+      "tags": ["BUS_CORE"],
+      "sections": [
+        {"id": "BUS250-01", "seats_left": 11,
+         "meetings": [{"days": ["Mon", "Wed"], "start": "13:00", "end": "14:15", "label": "Lecture"}]},
+        {"id": "BUS250-02", "seats_left": 4,
+         "meetings": [{"days": ["Tue", "Thu"], "start": "09:30", "end": "10:45", "label": "Lecture"}]}
+      ]
+    },
+    {
+      "id": "ACCT210",
+      "title": "Managerial Accounting",
+      "credits": 3,
+      "tags": ["BUS_CORE"],
+      "sections": [
+        {"id": "ACCT210-01", "seats_left": 5,
+         "meetings": [{"days": ["Wed", "Fri"], "start": "13:00", "end": "14:15", "label": "Lecture"}]},
+        {"id": "ACCT210-02", "seats_left": 0,
+         "meetings": [{"days": ["Mon", "Wed"], "start": "09:00", "end": "10:15", "label": "Lecture"}]}
+      ]
+    }
+  ]
+}
