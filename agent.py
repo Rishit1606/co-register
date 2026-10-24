@@ -203,7 +203,7 @@ class Agent:
 
     def escalate(self, section_id: str, options: list[str], round: int = 0) -> Message:
         payload = {"section_id": section_id, "options": options}
-        return self._send(self.id, MessageType.ESCALATE_TO_HUMAN, payload, round)
+        return self._send(f"human:{self.id}", MessageType.ESCALATE_TO_HUMAN, payload, round)
 
 
 def _show(rule: Constraint | Preference) -> str:
