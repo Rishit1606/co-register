@@ -1,1 +1,3 @@
 pytest>=7
+# Optional, only for `python3 run_demo.py --llm` (Gemini free tier rewording):
+# google-genai

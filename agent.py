@@ -130,6 +130,10 @@ class Agent:
         """Forget all relaxations: a re-plan starts from the student's full preferences."""
         self._relaxed.clear()
 
+    def relaxed_prefs(self) -> list[Preference]:
+        """The soft prefs this agent relaxed. Only for this agent's own student."""
+        return [p for p in self._student.soft_prefs if p in self._relaxed]
+
     def relaxed(self) -> list[str]:
         """What this agent gave up, in words. Only for this agent's own student."""
         return [show(p) for p in self._student.soft_prefs if p in self._relaxed]

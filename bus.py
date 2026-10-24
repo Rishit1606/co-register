@@ -50,7 +50,9 @@ def human(agent_id: str) -> str:
 
 
 class MessageBus:
-    def __init__(self):
+    def __init__(self, listener=None):
+        """`listener`, if given, is called with each LogEntry as it is sent (live narration)."""
+        self._listener = listener
         self._agents: list[str] = []
         self._inboxes: dict[str, list[Message]] = {}
         self.log: list[LogEntry] = []
@@ -78,7 +80,7 @@ class MessageBus:
         if extra:
             raise BusError(f"{msg.type.value} may not carry field(s) {sorted(extra)}")
 
-        self.log.append(LogEntry(
+        entry = LogEntry(
             seq=len(self.log) + 1,
             round=msg.round,
             sender=msg.sender,
@@ -86,7 +88,10 @@ class MessageBus:
             type=msg.type.value,
             fields=msg.field_names(),
             payload=dict(msg.payload),
-        ))
+        )
+        self.log.append(entry)
+        if self._listener is not None:
+            self._listener(entry)
         for r in recipients:
             self._inboxes[r].append(msg)
 

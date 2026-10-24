@@ -53,7 +53,7 @@ def test_one_no_triggers_a_replan(sc):
     assert result.status == "confirmed" and result.section_id == "PHIL215-03"
     assert result.rejected == [("PHIL215-04", "ben")]
     assert ("ben", "DECLINE", "PHIL215-04") in confirmations(bus)
-    assert "Ben said no to PHIL215-04" in said
+    assert "re-planning without PHIL215-04" in said
     # The re-plan started from full preferences, then had to relax further.
     assert set(result.relaxed) == {"ana", "ben", "maya"}
     # Round numbers keep increasing across the re-plan.
@@ -84,7 +84,7 @@ def test_no_seat_means_automatic_replan(sc):
     sc.seat_holders.pop("quinn")  # breaks the 3-way swap for PHIL215-04
     result, _, said, prompts = run(sc, "y", "y", "y")
     assert result.rejected == [("PHIL215-04", "no seat")]
-    assert "No seat in PHIL215-04 for ana" in said
+    assert "No seat in PHIL215-04 for Ana" in said
     assert result.status == "confirmed" and result.section_id == "PHIL215-03"
 
 
@@ -92,7 +92,7 @@ def test_briefings_are_private_but_the_bus_is_clean(sc):
     _, bus, said, _ = run(sc, "y", "y", "y")
     ben_briefing = said.split("--- Private to Ben ---")[1].split("--- Private to")[0]
     ana_briefing = said.split("--- Private to Ana ---")[1].split("--- Private to")[0]
-    assert "day_off Fri" in ben_briefing and "day_off Fri" not in ana_briefing
+    assert "Fridays off" in ben_briefing and "Fridays off" not in ana_briefing
     assert "3-way swap" in ana_briefing
     log = bus.render().lower()
     for st in sc.students.values():

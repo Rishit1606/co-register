@@ -16,10 +16,10 @@ from dataclasses import dataclass, field
 
 from agent import Agent
 from bus import MessageBus, human
-from course_finder import categories_from_messages, find_shared_courses
+from course_finder import categories_from_messages, find_shared_courses, near_misses
 from loader import Scenario, load_scenario
-from models import Section, format_time
 from negotiation import negotiate
+from phrasing import Phraser, describe_pref, join_names, trade, when
 from solver import Schedule
 from swaps import SeatPlan, secure_seats
 
@@ -34,20 +34,14 @@ class FinalPlan:
     rejected: list[tuple[str, str]] = field(default_factory=list)  # (section, who said no / "no seat")
 
 
-def when(section: Section) -> str:
-    """'Wed/Fri 11:00-12:15' (meetings with the same time grouped)."""
-    groups: dict[tuple, list[str]] = {}
-    for m in section.meetings:
-        groups.setdefault((m.start, m.end, m.label), []).append(m.day)
-    parts = []
-    for (start, end, label), days in groups.items():
-        lab = f" {label.lower()}" if label and label != "Lecture" else ""
-        parts.append(f"{'/'.join(days)} {format_time(start)}-{format_time(end)}{lab}")
-    return ", ".join(parts)
+def names_of(sc: Scenario) -> dict[str, str]:
+    return {**{h.id: h.name for h in sc.seat_holders.values()},
+            **{s.id: s.name for s in sc.students.values()}}
 
 
 def briefing(agent: Agent, sc: Scenario, section_id: str, seats: SeatPlan) -> str:
-    """What an agent tells its OWN student. Never sent to anyone else."""
+    """What an agent tells its OWN student. Never sent to anyone else (or to the LLM)."""
+    names = names_of(sc)
     sched = agent.plan(section_id)
     course = sc.catalog[sc.sections[section_id].course_id]
     lines = [
@@ -63,11 +57,12 @@ def briefing(agent: Agent, sc: Scenario, section_id: str, seats: SeatPlan) -> st
         cycle = seats.swaps[agent.id]
         lines.append(f"The section was full, so your seat comes from a {cycle.size}-way swap "
                      "(the other students already agreed):")
-        lines += [f"  {t}" for t in cycle.trades]
+        lines += [f"  {trade(t, names, viewer=agent.id)}" for t in cycle.trades]
     elif agent.id in seats.open_seats:
         lines.append("A seat is open for you.")
-    if agent.relaxed():
-        lines.append(f"To make this work, your agent relaxed: {', '.join(agent.relaxed())}. "
+    relaxed = [describe_pref(p) for p in agent.relaxed_prefs()]
+    if relaxed:
+        lines.append(f"To make this work, your agent relaxed: {', '.join(relaxed)}. "
                      "Your friends were not told what.")
     else:
         lines.append("None of your preferences had to be relaxed.")
@@ -85,8 +80,11 @@ def ask_yes_no(prompt: str, ask: Callable[[str], str]) -> bool:
 
 def plan_and_confirm(sc: Scenario, bus: MessageBus | None = None,
                      ask: Callable[[str], str] = input, say: Callable[[str], None] = print,
-                     max_attempts: int = 6) -> FinalPlan:
+                     phraser: Phraser | None = None, max_attempts: int = 6) -> FinalPlan:
     bus = bus or MessageBus()
+    phraser = phraser or Phraser()
+    names = names_of(sc)
+    keep = tuple(names.values())
     agents = [Agent(st, sc.catalog, sc.sections) for st in sc.students.values()]
     for a in agents:
         bus.register(a.id)
@@ -94,7 +92,16 @@ def plan_and_confirm(sc: Scenario, bus: MessageBus | None = None,
     for a, m in zip(agents, shares):
         bus.send(m)
         bus.send(a.share_free_windows())
-    shared = find_shared_courses(sc.catalog, categories_from_messages(shares))
+
+    categories = categories_from_messages(shares)
+    shared = find_shared_courses(sc.catalog, categories)
+    for c in shared:
+        uses = ", ".join(f"{names[aid]} as {'/'.join(sorted(cats))}" for aid, cats in c.counts_as.items())
+        say(phraser.polish(f"{c.course_id} {sc.catalog[c.course_id].title} counts for everyone: {uses}.", keep))
+    misses = near_misses(sc.catalog, categories)
+    if misses:
+        say("Also considered, but each misses one friend: "
+            + ", ".join(f"{cid} (not {names[who]})" for cid, who in misses) + ".")
 
     excluded: set[str] = set()
     rejected: list[tuple[str, str]] = []
@@ -114,13 +121,25 @@ def plan_and_confirm(sc: Scenario, bus: MessageBus | None = None,
                              relaxed=outcome.relaxed)
 
         sid = outcome.section_id
+        section = sc.sections[sid]
+        relax = f" after relaxation level {outcome.level}" if outcome.level else ""
+        short = (f" It has only {section.seats_left} seats left for {len(agents)} friends."
+                 if outcome.needs_swap else "")
+        say(phraser.polish(f"Agreement: {sid} ({when(section)}) works for everyone{relax}.{short}", keep))
+
         rnd = outcome.rounds + 1
-        seats = secure_seats(agents, sc.sections[sid], list(sc.seat_holders.values()), bus, round=rnd)
+        seats = secure_seats(agents, section, list(sc.seat_holders.values()), bus, round=rnd)
         if not seats.ok:
-            say(f"No seat in {sid} for {', '.join(seats.stuck)} (no swap possible). Re-planning.")
+            say(f"No seat in {sid} for {join_names([names[s] for s in seats.stuck])} "
+                "(no swap possible). Re-planning.")
             excluded.add(sid)
             rejected.append((sid, "no seat"))
             continue
+        if seats.open_seats:
+            say(f"{join_names([names[s] for s in seats.open_seats])} take the open seats.")
+        for aid, cycle in seats.swaps.items():
+            steps = "; ".join(trade(t, names) for t in cycle.trades)
+            say(phraser.polish(f"{names[aid]} gets in through a {cycle.size}-way swap: {steps}.", keep))
 
         no_from = None
         for a in agents:
@@ -133,7 +152,7 @@ def plan_and_confirm(sc: Scenario, bus: MessageBus | None = None,
         if no_from is None:
             return FinalPlan("confirmed", sid, {a.id: a.plan(sid) for a in agents}, seats,
                              outcome.relaxed, rejected)
-        say(f"\n{no_from.name} said no to {sid}. Nothing is final; re-planning without it.")
+        say(f"Nothing is final; re-planning without {sid}.")
         excluded.add(sid)
         rejected.append((sid, no_from.id))
 
