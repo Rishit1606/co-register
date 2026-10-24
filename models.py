@@ -125,6 +125,7 @@ class MessageType(Enum):
     DECLINE = "DECLINE"
     SWAP_OFFER = "SWAP_OFFER"
     ESCALATE_TO_HUMAN = "ESCALATE_TO_HUMAN"
+    RELAX = "RELAX"  # "everyone relax soft prefs up to this level"; who relaxed what stays private
 
 
 @dataclass(frozen=True)

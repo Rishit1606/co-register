@@ -22,7 +22,7 @@ from models import (
     format_time,
     parse_time,
 )
-from solver import Schedule, best_schedule, broken_prefs, hard_violations
+from solver import Schedule, best_schedule, broken_prefs, hard_violations, show
 
 CAMPUS_DAY = (parse_time("08:00"), parse_time("21:00"))
 
@@ -35,6 +35,7 @@ ALLOWED_FIELDS: dict[MessageType, set[str]] = {
     MessageType.DECLINE: {"section_id"},
     MessageType.SWAP_OFFER: {"give_section", "want_section"},
     MessageType.ESCALATE_TO_HUMAN: {"section_id", "options"},
+    MessageType.RELAX: {"level"},
 }
 
 # Words that would reveal how a student's rules are structured (hard vs soft, priorities).
@@ -119,6 +120,16 @@ class Agent:
     def relax(self, pref: Preference) -> None:
         self._relaxed.add(pref)
 
+    def relax_to(self, level: int) -> list[Preference]:
+        """Relax every active soft pref with priority <= level. Returns what was newly relaxed."""
+        newly = [p for p in self.active_prefs() if p.priority <= level]
+        self._relaxed.update(newly)
+        return newly
+
+    def relaxed(self) -> list[str]:
+        """What this agent gave up, in words. Only for this agent's own student."""
+        return [show(p) for p in self._student.soft_prefs if p in self._relaxed]
+
     def holds(self, section_id: str) -> bool:
         return section_id in self._student.holds
 
@@ -130,10 +141,27 @@ class Agent:
             soft=broken_prefs(self.active_prefs(), sections, self._catalog),
         )
 
-    def plan(self, shared_section_id: str, counts_as: frozenset[str]) -> Schedule | None:
+    def plan(self, shared_section_id: str, counts_as: frozenset[str] | None = None) -> Schedule | None:
         """Best full schedule around a shared section. Still-active soft prefs act as hard."""
+        if counts_as is None:
+            course = self._catalog[self._sections[shared_section_id].course_id]
+            counts_as = course.tags & self._student.open_requirements
         return best_schedule(self._student, self._catalog, self._sections, shared_section_id,
                              frozenset(counts_as), strict=frozenset(self.active_prefs()))
+
+    def next_option(self, course_id: str, group_size: int, tried: set[str]) -> str | None:
+        """The section of a shared course this agent would propose next, or None if it has none left.
+
+        Cheapest for me first; among equals, sections with a seat for everyone first.
+        """
+        ranked = []
+        for s in self._catalog[course_id].sections:
+            if s.id in tried:
+                continue
+            sched = self.plan(s.id)
+            if sched is not None:
+                ranked.append((sched.cost, s.seats_left < group_size, s.id))
+        return min(ranked)[2] if ranked else None
 
     def free_windows(self) -> list[dict]:
         """Unlabeled free time. Busy blocks, hard limits and active soft limits look identical."""
@@ -174,12 +202,24 @@ class Agent:
         payload = {"section_id": section_id, "course_id": self._sections[section_id].course_id}
         return self._send(recipient, type, payload, round)
 
-    def respond(self, proposal: Message, other_sections: list[str] = ()) -> Message:
-        """Accept or decline a proposed section. The reason stays private."""
+    def respond(self, proposal: Message) -> Message:
+        """Accept iff I can build a full schedule around the proposed section. The reason stays private."""
         sid = proposal.payload["section_id"]
-        verdict = self.evaluate([sid, *other_sections])
-        type = MessageType.ACCEPT if verdict.ok else MessageType.DECLINE
+        type = MessageType.ACCEPT if self.plan(sid) is not None else MessageType.DECLINE
         return self._send(proposal.sender, type, {"section_id": sid}, proposal.round)
+
+    def handle(self, msg: Message) -> Message | None:
+        """React to an incoming message. Returns a reply to send, if any."""
+        if msg.type in (MessageType.PROPOSE, MessageType.COUNTER):
+            return self.respond(msg)
+        if msg.type is MessageType.RELAX:
+            self.relax_to(msg.payload["level"])
+        return None
+
+    def call_relax(self, level: int, round: int = 0) -> Message:
+        """Lead the group into relaxation `level` (relaxing my own prefs too)."""
+        self.relax_to(level)
+        return self._send("all", MessageType.RELAX, {"level": level}, round)
 
     def swap_offer(self, give: str, want: str, recipient: str, round: int = 0) -> Message:
         payload = {"give_section": give, "want_section": want}
