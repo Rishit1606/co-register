@@ -13,7 +13,6 @@ from dataclasses import dataclass, field
 from models import (
     DAYS,
     RULE_KINDS,
-    Constraint,
     Course,
     Message,
     MessageType,
@@ -23,6 +22,7 @@ from models import (
     format_time,
     parse_time,
 )
+from solver import Schedule, best_schedule, broken_prefs, hard_violations
 
 CAMPUS_DAY = (parse_time("08:00"), parse_time("21:00"))
 
@@ -81,22 +81,6 @@ class Evaluation:
         return not self.hard and not self.soft
 
 
-def _breaks(kind: str, value, sections: list[Section], credits: int) -> bool:
-    meetings = [m for s in sections for m in s.meetings]
-    days = {m.day for m in meetings}
-    if kind == "no_before":
-        return any(m.start < value for m in meetings)
-    if kind == "no_after":
-        return any(m.end > value for m in meetings)
-    if kind == "day_off":
-        return value in days
-    if kind == "max_days":
-        return len(days) > value
-    if kind == "max_credits":
-        return credits > value
-    raise ValueError(f"unknown rule kind {kind!r}")
-
-
 def _subtract(windows: list[tuple[int, int]], start: int, end: int) -> list[tuple[int, int]]:
     """Remove [start, end) from each window, keeping what's left on either side."""
     out = []
@@ -135,21 +119,21 @@ class Agent:
     def relax(self, pref: Preference) -> None:
         self._relaxed.add(pref)
 
+    def holds(self, section_id: str) -> bool:
+        return section_id in self._student.holds
+
     def evaluate(self, section_ids: list[str]) -> Evaluation:
         """Check a set of sections against busy blocks, hard constraints and active soft prefs."""
         sections = [self._sections[sid] for sid in section_ids]
-        credits = sum(self._catalog[s.course_id].credits for s in sections)
-        result = Evaluation()
-        for s in sections:
-            for m in s.meetings:
-                for b in self._student.busy_blocks:
-                    if m.overlaps(b):
-                        result.hard.append(f"{s.id} {m} clashes with {b.label} ({b})")
-        for c in self._student.hard_constraints:
-            if _breaks(c.kind, c.value, sections, credits):
-                result.hard.append(f"breaks {c.kind}={_show(c)}")
-        result.soft = [p for p in self.active_prefs() if _breaks(p.kind, p.value, sections, credits)]
-        return result
+        return Evaluation(
+            hard=hard_violations(self._student, sections, self._catalog),
+            soft=broken_prefs(self.active_prefs(), sections, self._catalog),
+        )
+
+    def plan(self, shared_section_id: str, counts_as: frozenset[str]) -> Schedule | None:
+        """Best full schedule around a shared section. Still-active soft prefs act as hard."""
+        return best_schedule(self._student, self._catalog, self._sections, shared_section_id,
+                             frozenset(counts_as), strict=frozenset(self.active_prefs()))
 
     def free_windows(self) -> list[dict]:
         """Unlabeled free time. Busy blocks, hard limits and active soft limits look identical."""
@@ -205,6 +189,3 @@ class Agent:
         payload = {"section_id": section_id, "options": options}
         return self._send(f"human:{self.id}", MessageType.ESCALATE_TO_HUMAN, payload, round)
 
-
-def _show(rule: Constraint | Preference) -> str:
-    return format_time(rule.value) if rule.kind in ("no_before", "no_after") else str(rule.value)
