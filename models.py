@@ -118,6 +118,7 @@ class SeatHolder:
 
 
 class MessageType(Enum):
+    SHARE = "SHARE"  # informational: open categories, free windows
     PROPOSE = "PROPOSE"
     COUNTER = "COUNTER"
     ACCEPT = "ACCEPT"
