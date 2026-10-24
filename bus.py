@@ -62,6 +62,9 @@ class MessageBus:
         self._inboxes[agent_id] = []
         self._inboxes[human(agent_id)] = []
 
+    def has(self, agent_id: str) -> bool:
+        return agent_id in self._agents
+
     def send(self, msg: Message) -> None:
         if msg.sender not in self._agents:
             raise BusError(f"unknown sender {msg.sender!r}")

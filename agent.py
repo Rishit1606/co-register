@@ -149,6 +149,12 @@ class Agent:
         return best_schedule(self._student, self._catalog, self._sections, shared_section_id,
                              frozenset(counts_as), strict=frozenset(self.active_prefs()))
 
+    def tradeable_seats(self, shared_section_id: str) -> list[str]:
+        """Seats I hold but won't need if I take this shared section: what I can offer in a swap."""
+        plan = self.plan(shared_section_id)
+        keep = set(plan.section_ids) if plan else set()
+        return [sid for sid in self._student.holds if sid not in keep]
+
     def next_option(self, course_id: str, group_size: int, tried: set[str]) -> str | None:
         """The section of a shared course this agent would propose next, or None if it has none left.
 
@@ -222,6 +228,7 @@ class Agent:
         return self._send("all", MessageType.RELAX, {"level": level}, round)
 
     def swap_offer(self, give: str, want: str, recipient: str, round: int = 0) -> Message:
+        """Offer `recipient` their part of a swap: they give `give`, they receive `want`."""
         payload = {"give_section": give, "want_section": want}
         return self._send(recipient, MessageType.SWAP_OFFER, payload, round)
 
