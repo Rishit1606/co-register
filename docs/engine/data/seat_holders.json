@@ -1,0 +1,8 @@
+{
+  "seat_holders": [
+    {"id": "priya", "name": "Priya", "holds": "PHIL215-04", "would_accept": ["BIO240-02"]},
+    {"id": "quinn", "name": "Quinn", "holds": "BIO240-02", "would_accept": ["MATH220-01"]},
+    {"id": "raj",   "name": "Raj",   "holds": "PHIL215-04", "would_accept": ["ACCT210-02"]},
+    {"id": "sam",   "name": "Sam",   "holds": "BUS250-02",  "would_accept": ["NURS310-02"]}
+  ]
+}

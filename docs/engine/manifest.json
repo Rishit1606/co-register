@@ -1,0 +1,16 @@
+[
+  "models.py",
+  "loader.py",
+  "solver.py",
+  "agent.py",
+  "bus.py",
+  "course_finder.py",
+  "negotiation.py",
+  "swaps.py",
+  "confirm.py",
+  "phrasing.py",
+  "webapi.py",
+  "data/catalog.json",
+  "data/seat_holders.json",
+  "data/students.json"
+]

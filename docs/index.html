@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Co-Register</title>
+  <meta name="description" content="Three friends in different majors, three agents, one class everyone can take. Change their private rules and watch the agents negotiate.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=DM+Mono:wght@400;500&family=Public+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <a class="skip" href="#workbench">Skip to the demo</a>
+
+  <header class="top">
+    <a class="mark" href="#top">Co-Register</a>
+    <nav aria-label="Page sections">
+      <a href="#workbench">Try it</a>
+      <a href="#how">How it works</a>
+      <a href="#honest">What is real</a>
+      <a href="https://github.com/Rishit1606/co-register">Code on GitHub</a>
+    </nav>
+  </header>
+
+  <main id="top">
+    <section class="hero">
+      <h1>Three majors, three schedules, one class they can all take.</h1>
+      <p class="lede">Each student has an agent that knows their private schedule and rules. The agents negotiate with each other, share only what they have to, and ask every student to confirm. Change the rules below and watch them work it out.</p>
+      <p id="engine-status" class="status" role="status" aria-live="polite">Showing a recorded run. Loading the live engine…</p>
+    </section>
+
+    <section id="workbench" class="bench" aria-label="Interactive demo">
+      <aside class="controls">
+        <div class="group">
+          <h2>Pick a story</h2>
+          <div id="presets" class="presets" role="radiogroup" aria-label="Stories"></div>
+        </div>
+
+        <details class="group" id="custom" open>
+          <summary><h2>Or change the rules</h2></summary>
+
+          <div class="field">
+            <label for="c-ben">Ben wants Fridays off</label>
+            <select id="c-ben">
+              <option value="0">Does not care</option>
+              <option value="1">Nice to have (importance 1)</option>
+              <option value="2">Matters (importance 2)</option>
+              <option value="3">Really matters (importance 3)</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="c-maya">Maya wants classes on at most</label>
+            <select id="c-maya">
+              <option value="">Any number of days</option>
+              <option value="2">2 days</option>
+              <option value="3">3 days</option>
+              <option value="4">4 days</option>
+            </select>
+          </div>
+
+          <div class="field check">
+            <input type="checkbox" id="c-ana">
+            <label for="c-ana">Ana avoids classes before 9 AM</label>
+          </div>
+
+          <div class="field">
+            <label for="c-seats">Seats left in PHIL215-04</label>
+            <select id="c-seats">
+              <option value="3">3 seats (room for everyone)</option>
+              <option value="2">2 seats</option>
+              <option value="1">1 seat</option>
+              <option value="0">0 seats (full)</option>
+            </select>
+          </div>
+
+          <div class="field check">
+            <input type="checkbox" id="c-priya">
+            <label for="c-priya">Priya will swap her PHIL215-04 seat</label>
+          </div>
+
+          <fieldset class="field">
+            <legend>Says no to the first plan</legend>
+            <label class="inline"><input type="checkbox" name="no" value="ana"> Ana</label>
+            <label class="inline"><input type="checkbox" name="no" value="ben"> Ben</label>
+            <label class="inline"><input type="checkbox" name="no" value="maya"> Maya</label>
+          </fieldset>
+
+          <button type="button" id="reset" class="plain">Back to the base story</button>
+        </details>
+      </aside>
+
+      <div class="results">
+        <div id="outcome" class="outcome" aria-live="polite"></div>
+
+        <section class="panel" aria-labelledby="h-week">
+          <div class="panel-head">
+            <h2 id="h-week">Everyone's week</h2>
+            <div id="view-tabs" class="tabs" role="tablist" aria-label="Whose schedule"></div>
+          </div>
+          <div id="grid" class="grid-wrap"></div>
+          <div id="legend" class="legend"></div>
+        </section>
+
+        <section class="panel" aria-labelledby="h-seat">
+          <div class="panel-head"><h2 id="h-seat">Getting everyone a seat</h2></div>
+          <div id="seat"></div>
+        </section>
+
+        <section class="panel" aria-labelledby="h-log">
+          <div class="panel-head">
+            <h2 id="h-log">What the agents said</h2>
+            <div class="tabs">
+              <button type="button" id="replay" class="plain">Replay</button>
+              <button type="button" id="showall" class="plain">Show all</button>
+            </div>
+          </div>
+          <p class="hint">Every message that crossed between agents. Declines never carry a reason.</p>
+          <div id="ledger" class="ledger"></div>
+        </section>
+
+        <section class="panel" aria-labelledby="h-priv">
+          <div class="panel-head">
+            <h2 id="h-priv">What stayed private</h2>
+            <div id="priv-tabs" class="tabs" role="tablist" aria-label="Whose private side"></div>
+          </div>
+          <div id="privacy"></div>
+        </section>
+      </div>
+    </section>
+
+    <section id="how" class="prose">
+      <h2>How the agents get to a plan</h2>
+      <ol class="steps">
+        <li><strong>Share.</strong> Each agent announces which requirement categories its student still needs and when they are free. It never says why a time is blocked.</li>
+        <li><strong>Find.</strong> The course finder intersects those categories and looks for a class that counts for every major.</li>
+        <li><strong>Negotiate.</strong> Agents take turns proposing sections. The others answer accept or decline, with no reason. When nobody has a proposal left, every agent privately drops its least important preferences, one level at a time.</li>
+        <li><strong>Get seats.</strong> If the section is short on seats, a breadth-first search finds the shortest swap cycle through students who hold seats. Each of them confirms their part.</li>
+        <li><strong>Confirm.</strong> Each student reads a private briefing and answers yes or no. One no sends everyone back to step 3 without that section.</li>
+      </ol>
+    </section>
+
+    <section id="honest" class="prose">
+      <h2>What is real and what is mock</h2>
+      <ul>
+        <li>The negotiation you see here is the real engine. It is the same Python code that runs in the terminal, running in your browser.</li>
+        <li>The courses, seat counts, students and seat holders are mock data. It does not connect to ASU class search and cannot register anyone.</li>
+        <li>The agents are objects inside one program, not separate devices. A share policy checks every message against a field whitelist and scans it for that student's private values, and an audit scans the whole log at the end.</li>
+        <li>No AI model makes any decision. The agents use set intersection, backtracking search and graph search. An optional language model can reword a few public summary lines, and it is off here.</li>
+        <li>After a relaxation round, the other agents can tell that someone dropped a preference. They cannot tell who it was or what it was.</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer>
+    <p>Co-Register was built at DevHacks Fall '26 for the Cubbie Hackathon, Track 2: Agent-to-Agent Coordination. <a href="https://github.com/Rishit1606/co-register">Read the code</a>.</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
