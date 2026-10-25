@@ -31,7 +31,7 @@ DEFAULTS = {
     "maya_max_days": 3,            # None = no limit; else classes on at most this many days (soft, priority 2)
     "ana_no_early": True,          # Ana would rather not start before 9:00 (soft, priority 3)
     "seats_left": 2,               # open seats left in PHIL215-04
-    "priya_willing": True,         # will Priya give up her PHIL215-04 seat in a swap?
+    "priya_willing": True,         # will Priya give up the PHIL215-04 seat in a swap?
     "say_no_first": [],            # student ids who answer "no" the first time they are asked
 }
 

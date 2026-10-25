@@ -353,7 +353,7 @@
 
   async function loadEngine() {
     try {
-      const base = new URLSearchParams(location.search).get('pyodide') || PYODIDE_BASE;
+      const base = PYODIDE_BASE;
       await loadScript(base + 'pyodide.js');
       const py = await window.loadPyodide({ indexURL: base });
       const manifest = await (await fetch('engine/manifest.json')).json();
