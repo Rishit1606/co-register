@@ -24,7 +24,7 @@ ENGINE = DOCS / "engine"
 
 PY_FILES = [
     "models.py", "loader.py", "solver.py", "agent.py", "bus.py", "course_finder.py",
-    "negotiation.py", "swaps.py", "confirm.py", "phrasing.py", "webapi.py",
+    "negotiation.py", "swaps.py", "confirm.py", "phrasing.py", "ics.py", "webapi.py",
 ]
 
 PRESETS = [

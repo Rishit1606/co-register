@@ -9,6 +9,7 @@
   "swaps.py",
   "confirm.py",
   "phrasing.py",
+  "ics.py",
   "webapi.py",
   "data/catalog.json",
   "data/seat_holders.json",

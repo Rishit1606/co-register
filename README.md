@@ -11,6 +11,10 @@ important preferences when nothing fits, and get into full sections through mult
 swaps. They do all this while sharing only what they have to: never your GPA, your
 transcript, your job, or *why* you said no. Nothing is final until every student says yes.
 
+**Live demo:** https://rishit1606.github.io/co-register/ — watch the agents negotiate, peek
+inside any agent to see what it keeps private, and answer yes or no for each student. A "no"
+re-runs the real engine in your browser (Pyodide).
+
 ## Run it
 
 Python 3.11+, standard library only. Runs fully offline.
@@ -21,7 +25,7 @@ python3 run_demo.py --answers y,n        # Ben says no -> the agents re-plan
 python3 run_demo.py --interactive        # you type each student's answer
 python3 confirm.py                       # just the confirmation loop, interactive
 
-pip install pytest && python3 -m pytest  # 93 tests
+pip install pytest && python3 -m pytest  # 98 tests
 ```
 
 The demo writes `out/ana.ics`, `out/ben.ics` and `out/maya.ics`, which you can import into

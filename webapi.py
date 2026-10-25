@@ -9,6 +9,11 @@ Nothing here decides anything. All negotiation, solving and swap-finding is done
 same modules `run_demo.py` uses. This file only changes the starting data, records what
 happens, and reshapes it.
 
+The page has a "peek inside an agent" view. To fill it, the agents are swapped for a
+RecordingAgent subclass that writes down each agent's PRIVATE reason for accepting or
+declining. Those notes go into this JSON (the page plays the role of each student's own
+screen), never onto the bus, so the privacy audit below still scans exactly what agents sent.
+
 Try it locally:  python3 webapi.py            (prints the base scenario as JSON)
 """
 
@@ -17,12 +22,15 @@ from __future__ import annotations
 import json
 from dataclasses import replace
 
+import confirm
+from agent import Agent
 from bus import MessageBus
 from confirm import names_of, plan_and_confirm
+from ics import calendar
 from loader import Scenario, load_scenario
-from models import Preference
-from phrasing import Phraser, narrate
-from solver import show
+from models import MessageType, Preference
+from phrasing import Phraser, describe_pref, narrate
+from solver import best_schedule, breaks, show
 
 PHIL_SECTION = "PHIL215-04"
 
@@ -33,6 +41,7 @@ DEFAULTS = {
     "seats_left": 2,               # open seats left in PHIL215-04
     "priya_willing": True,         # will Priya give up the PHIL215-04 seat in a swap?
     "say_no_first": [],            # student ids who answer "no" the first time they are asked
+    "answers": [],                 # "y"/"n" in the order students are asked; overrides say_no_first
 }
 
 PHASES = {
@@ -55,7 +64,74 @@ def _clean(options: dict) -> dict:
     o["seats_left"] = max(0, min(5, int(o["seats_left"])))
     o["priya_willing"] = bool(o["priya_willing"])
     o["say_no_first"] = [s for s in o["say_no_first"] if s in ("ana", "ben", "maya")]
+    o["answers"] = [a for a in (o["answers"] or []) if a in ("y", "n")][:24]
     return o
+
+
+class _Notes:
+    """What the agents thought privately during one run, for the page's peek view."""
+
+    def __init__(self):
+        self.thoughts: dict[tuple, str] = {}   # (sender, type, section_id, round) -> private reason
+        self.relaxed: dict[str, list[str]] | None = None  # the current RELAX: agent id -> what it dropped
+
+
+def _recording_agent(notes: _Notes) -> type[Agent]:
+    """An Agent that behaves identically but writes down its private reasons in `notes`."""
+
+    class RecordingAgent(Agent):
+        def why_not(self, sid: str) -> str:
+            st, sec = self._student, self._sections[sid]
+            course = self._catalog[sec.course_id]
+            loose = best_schedule(st, self._catalog, self._sections, sid,
+                                  frozenset(course.tags & st.open_requirements))
+            if loose is not None:
+                active = set(self.active_prefs())
+                hit = [p for p in loose.broken if p in active]
+                if hit:
+                    return "It would break " + " and ".join(
+                        f"{describe_pref(p)} (a preference, importance {p.priority})" for p in hit) + "."
+            labels = sorted({b.label for m in sec.meetings for b in st.busy_blocks if m.overlaps(b)})
+            if labels:
+                return f"It clashes with {'; '.join(labels)}. That can't move."
+            rules = [describe_pref(c) for c in st.hard_constraints
+                     if breaks(c.kind, c.value, [sec], course.credits)]
+            if rules:
+                return f"It breaks a hard rule: {', '.join(rules)}."
+            return "No full week fits around it: the other required classes clash or go over a limit."
+
+        def why_yes(self, sid: str) -> str:
+            plan = self.plan(sid)
+            given_up = [describe_pref(p) for p in plan.broken] if plan else []
+            if given_up:
+                return f"A full week fits by giving up {' and '.join(given_up)}."
+            return "A full week fits around it, with nothing given up."
+
+        def respond(self, proposal):
+            msg = super().respond(proposal)
+            sid = msg.payload["section_id"]
+            notes.thoughts[(self.id, msg.type.value, sid, msg.round)] = (
+                self.why_yes(sid) if msg.type is MessageType.ACCEPT else self.why_not(sid))
+            return msg
+
+        def recheck(self, declined, to, round=0):
+            msgs = super().recheck(declined, to, round)
+            for m in msgs:
+                sid = m.payload["section_id"]
+                notes.thoughts[(self.id, "ACCEPT", sid, round)] = "Now it works. " + self.why_yes(sid)
+            return msgs
+
+        def call_relax(self, level, round=0):
+            notes.relaxed = {}
+            return super().call_relax(level, round)
+
+        def relax_to(self, level):
+            newly = super().relax_to(level)
+            if notes.relaxed is not None:
+                notes.relaxed[self.id] = [describe_pref(p) for p in newly]
+            return newly
+
+    return RecordingAgent
 
 
 def apply_options(sc: Scenario, o: dict) -> None:
@@ -85,8 +161,9 @@ def apply_options(sc: Scenario, o: dict) -> None:
 
 def _rules(student) -> list[dict]:
     """A student's private rules, for the 'what stays private' panel (mock data)."""
-    out = [{"hard": True, "text": show(c)} for c in student.hard_constraints]
-    out += [{"hard": False, "text": show(p), "priority": p.priority} for p in student.soft_prefs]
+    out = [{"hard": True, "text": show(c), "label": describe_pref(c)} for c in student.hard_constraints]
+    out += [{"hard": False, "text": show(p), "label": describe_pref(p), "priority": p.priority}
+            for p in student.soft_prefs]
     return out
 
 
@@ -107,7 +184,8 @@ def run(options_json: str = "{}") -> str:
     sections = sc.sections
 
     timeline: list[dict] = []
-    state = {"phase": None, "asked": set()}
+    state = {"phase": None, "asked": set(), "asks": 0}
+    peek = _Notes()
     briefings: dict[str, str] = {}
     notes: list[str] = []
 
@@ -130,6 +208,13 @@ def run(options_json: str = "{}") -> str:
             "fields": entry.fields, "payload": entry.payload,
             "text": narrate(entry, names, sections),
         })
+        # Private side, for the peek view only. Never part of the message itself.
+        if entry.type in ("ACCEPT", "DECLINE"):
+            key = (entry.sender, entry.type, entry.payload.get("section_id"), entry.round)
+            if key in peek.thoughts:
+                timeline[-1]["thought"] = peek.thoughts.pop(key)
+        elif entry.type == "RELAX":
+            timeline[-1]["relaxed_private"] = peek.relaxed  # filled in as each agent relaxes
 
     def say(text: str) -> None:
         if state["phase"] == "share":
@@ -150,13 +235,23 @@ def run(options_json: str = "{}") -> str:
     def ask(prompt: str) -> str:
         who = prompt.split(",", 1)[0]
         sid = next(s.id for s in sc.students.values() if s.name == who)
-        no = sid in o["say_no_first"] and sid not in state["asked"]
+        if state["asks"] < len(o["answers"]):
+            answer = o["answers"][state["asks"]]
+        else:
+            answer = "n" if sid in o["say_no_first"] and sid not in state["asked"] else "y"
         state["asked"].add(sid)
-        timeline.append({"kind": "ask", "student": sid, "name": who, "answer": "n" if no else "y"})
-        return "n" if no else "y"
+        timeline.append({"kind": "ask", "student": sid, "name": who, "answer": answer,
+                         "index": state["asks"]})
+        state["asks"] += 1
+        return answer
 
     bus = MessageBus(listener=on_message)
-    result = plan_and_confirm(sc, bus, ask=ask, say=say, phraser=Phraser())
+    real_agent = confirm.Agent
+    confirm.Agent = _recording_agent(peek)
+    try:
+        result = plan_and_confirm(sc, bus, ask=ask, say=say, phraser=Phraser())
+    finally:
+        confirm.Agent = real_agent
 
     phase("privacy")
     audit = bus.audit()
@@ -171,6 +266,8 @@ def run(options_json: str = "{}") -> str:
             level = int(n.split("relaxation level", 1)[1].strip().split(".")[0].split()[0])
 
     used = set()
+    proposed = {t["payload"]["section_id"] for t in timeline
+                if t["kind"] == "msg" and t["type"] in ("PROPOSE", "COUNTER")}
     schedules = {}
     for sid, sched in result.schedules.items():
         used.update(sched.section_ids)
@@ -190,6 +287,8 @@ def run(options_json: str = "{}") -> str:
             "private": {
                 "gpa": s.gpa, "transcript": list(s.transcript),
                 "busy": sorted({b.label for b in s.busy_blocks}),
+                "blocks": [{"day": b.day, "start": b.start, "end": b.end, "label": b.label}
+                           for b in s.busy_blocks],
                 "rules": _rules(s),
             },
         } for s in sc.students.values()],
@@ -207,7 +306,10 @@ def run(options_json: str = "{}") -> str:
             "swaps": swaps,
             "schedules": schedules,
         },
-        "sections": {sid: _section_info(sc, sid) for sid in sorted(used | {PHIL_SECTION})},
+        "calendars": {sid: calendar(sc.students[sid].name, [sc.sections[x] for x in sched.section_ids],
+                                    sc.catalog)
+                      for sid, sched in result.schedules.items()},
+        "sections": {sid: _section_info(sc, sid) for sid in sorted(used | proposed | {PHIL_SECTION})},
         "audit": {
             "shared_fields": audit,
             "messages": len(bus.log),
