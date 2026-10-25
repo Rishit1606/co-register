@@ -15,9 +15,10 @@
   const $$ = (sel, el) => [...(el || document).querySelectorAll(sel)];
   const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
   const DAY_NAMES = { Mon: 'Monday', Tue: 'Tuesday', Wed: 'Wednesday', Thu: 'Thursday', Fri: 'Friday' };
-  const START = 8 * 60, END = 21 * 60;
+  const START = 8 * 60, END = 19 * 60;  // the hours that matter for these three
   const DEFAULTS = { ben_friday_priority: 1, maya_max_days: 3, ana_no_early: true, seats_left: 2, priya_willing: true, say_no_first: [], answers: [] };
   const COLOR = { ana: 'var(--ana)', ben: 'var(--ben)', maya: 'var(--maya)' };
+  const Art = window.CoArt;
   const PYODIDE_BASE = 'https://cdn.jsdelivr.net/pyodide/v0.26.4/full/';
   const STEPS = [
     { key: 'share', label: 'Share' }, { key: 'find', label: 'Find' }, { key: 'negotiate', label: 'Negotiate' },
@@ -119,6 +120,7 @@
       table: null, votes: {}, tried: {}, level: 0, dropped: {}, offers: [], holderYes: {}, open: [], swap: null,
       verdict: {}, attempt: 1, banner: null, ask: null, escalated: null, last: null, agreed: null, replans: [],
     };
+    if (upto === 0) state.run.students.forEach((s) => { w.said[s.id] = { text: `Hi! I look after ${s.name}'s schedule. I'll share as little as I can.` }; });
     for (let i = 0; i <= upto && i < state.beats.length; i++) {
       const b = state.beats[i], now = i === upto;
       w.phase = b.phase;
@@ -192,6 +194,7 @@
   function render(animate) {
     const w = world(state.pos);
     const beat = state.beats[state.pos];
+    $('#stage').dataset.mood = moodOfStage(w, beat);
     renderSteps(w);
     renderAgents(w, beat, animate);
     renderMinds(w);
@@ -199,6 +202,84 @@
     renderScene(w, beat, animate);
     renderWire(w, beat);
     renderTransport();
+    if (animate && beat && beat.msg) fly(beat);
+  }
+
+  // The stage's color follows the story: calm sharing, tense negotiating, a stuck moment, relief.
+  function moodOfStage(w, beat) {
+    if (w.ended) return w.escalated ? 'escalated' : 'end';
+    if (beat && beat.kind === 'relax') return 'relax';
+    if (w.banner && w.banner.tone === 'warn') return 'warn';
+    if (w.banner && w.banner.tone === 'good') return 'agree';
+    if (w.ask) return 'confirm';
+    return w.phase;
+  }
+
+  // A student's face. Private moods (relief at dropping a preference) only show when peeking.
+  function moodOf(w, beat, id) {
+    const peek = state.peek.has(id);
+    if (w.ended) return w.escalated ? 'worry' : 'joy';
+    if (w.ask && w.ask.who === id) return 'think';
+    if (w.verdict[id]) return w.verdict[id] === 'yes' ? 'yes' : 'no';
+    if (w.escalated) return 'worry';
+    if (beat && beat.kind === 'relax') return peek && (w.dropped[id] || []).length ? 'relief' : 'think';
+    const st = w.stamp[id];
+    if (st === 'no') return 'no';
+    if (st === 'propose') return 'think';
+    if (st === 'yes') return peek && /giving up/.test(w.thought[id] || '') ? 'relief' : 'yes';
+    if (w.phase === 'find' && w.find) return 'yes';
+    return 'neutral';
+  }
+
+  /* ---------- messages that fly between agents ---------- */
+  function centerOf(el) {
+    const s = $('#stage').getBoundingClientRect(), r = el.getBoundingClientRect();
+    return { x: r.left - s.left + r.width / 2, y: r.top - s.top + r.height / 2 };
+  }
+  function targetEl(id) {
+    return $(`.agent[data-id="${id}"] .portrait`) || $(`#scene [data-node="${id}"]`) || $('#scene');
+  }
+
+  function fly(beat) {
+    if (reduceMotion) return;
+    const m = beat.msg, layer = $('#fly');
+    const from = targetEl(m.sender);
+    let to = [];
+    if (m.recipient === 'all') to = state.run.students.map((s) => s.id).filter((x) => x !== m.sender);
+    else if (m.recipient.startsWith('human:')) to = [];
+    else to = [m.recipient];
+    const dur = 750 / state.speed;
+    if (m.type === 'RELAX' || m.type === 'ESCALATE_TO_HUMAN') {
+      const c = centerOf(from), ring = document.createElement('div');
+      ring.className = 'ripple' + (m.type === 'RELAX' ? ' relax' : '');
+      ring.style.left = c.x + 'px'; ring.style.top = c.y + 'px';
+      layer.appendChild(ring);
+      ring.animate([{ transform: 'translate(-50%,-50%) scale(0.2)', opacity: 0.9 }, { transform: 'translate(-50%,-50%) scale(9)', opacity: 0 }], { duration: dur * 2.4, easing: 'cubic-bezier(.2,.7,.3,1)' }).onfinish = () => ring.remove();
+      return;
+    }
+    const label = { PROPOSE: 'PROPOSE', COUNTER: 'COUNTER', ACCEPT: '✓', DECLINE: '✗', SHARE: 'SHARE', SWAP_OFFER: 'SWAP?' }[m.type] || m.type;
+    to.forEach((rid, i) => {
+      const a = centerOf(from), b = centerOf(targetEl(rid));
+      const env = document.createElement('div');
+      env.className = 'envelope t-' + m.type;
+      env.style.setProperty('--c', colorOf(m.sender));
+      env.innerHTML = `<span>${esc(label)}</span>`;
+      layer.appendChild(env);
+      const lift = Math.min(90, 30 + Math.abs(b.x - a.x) * 0.18);
+      const mid = { x: (a.x + b.x) / 2, y: Math.min(a.y, b.y) - lift };
+      const frames = [
+        { transform: `translate(${a.x}px, ${a.y}px) translate(-50%,-50%) scale(0.4) rotate(-8deg)`, opacity: 0 },
+        { transform: `translate(${a.x}px, ${a.y - 10}px) translate(-50%,-50%) scale(1) rotate(-4deg)`, opacity: 1, offset: 0.15 },
+        { transform: `translate(${mid.x}px, ${mid.y}px) translate(-50%,-50%) scale(1.08) rotate(3deg)`, opacity: 1, offset: 0.55 },
+        { transform: `translate(${b.x}px, ${b.y}px) translate(-50%,-50%) scale(0.85) rotate(0)`, opacity: 1, offset: 0.9 },
+        { transform: `translate(${b.x}px, ${b.y}px) translate(-50%,-50%) scale(0.3)`, opacity: 0 },
+      ];
+      env.animate(frames, { duration: dur, delay: i * 90, easing: 'cubic-bezier(.45,.05,.35,1)', fill: 'both' }).onfinish = () => {
+        env.remove();
+        const card = $(`.agent[data-id="${rid}"]`);
+        if (card) card.animate([{ transform: 'translateY(0)' }, { transform: 'translateY(-4px)' }, { transform: 'translateY(0)' }], { duration: 260 });
+      };
+    });
   }
 
   function renderSteps(w) {
@@ -217,7 +298,7 @@
       box.innerHTML = state.run.students.map((s) => `
         <article class="agent" data-id="${esc(s.id)}" style="--c:${colorOf(s.id)}">
           <header>
-            <span class="avatar" aria-hidden="true">${esc(s.name[0])}</span>
+            <span class="portrait" aria-hidden="true"></span><span class="bot" aria-hidden="true"></span>
             <div class="who"><h3>${esc(s.name)}<span class="agent-word">'s agent</span></h3><p>${esc(s.major)}</p></div>
             <span class="stamp" aria-hidden="true"></span>
           </header>
@@ -232,6 +313,13 @@
       card.classList.toggle('speaking', !!speaking);
       card.classList.toggle('peeked', state.peek.has(id));
       card.dataset.stamp = st || '';
+      const mood = moodOf(w, beat, id);
+      if (card.dataset.mood !== mood) {
+        card.dataset.mood = mood;
+        $('.portrait', card).innerHTML = Art.face(id, mood, { key: 'card' });
+        $('.bot', card).innerHTML = Art.robot(id, speaking && mood === 'neutral' ? 'think' : mood);
+        if (animate && !reduceMotion) $('.portrait', card).animate([{ transform: 'scale(1)' }, { transform: 'scale(1.12) rotate(-3deg)' }, { transform: 'scale(1)' }], { duration: 380, easing: 'cubic-bezier(.2,1.4,.4,1)' });
+      }
       $('.stamp', card).textContent = st ? STAMP[st] : '';
       const p = $('.bubble p', card);
       const html = said ? esc(said.text) + (said.nudge && !state.peek.has(id) ? ` <button type="button" class="why" data-id="${esc(id)}">Why? Peek inside</button>` : '') : '';
@@ -240,7 +328,10 @@
         const bubble = $('.bubble', card);
         bubble.dataset.tone = said ? said.tone || '' : '';
         bubble.classList.toggle('empty', !said);
-        if (animate && speaking && !reduceMotion) { bubble.classList.remove('pop'); void bubble.offsetWidth; bubble.classList.add('pop'); }
+        if (animate && speaking && !reduceMotion) {
+          bubble.classList.remove('pop', 'typing'); void bubble.offsetWidth;
+          bubble.classList.add(beat && /^(reply|recheck|verdict|holder)$/.test(beat.kind) ? 'typing' : 'pop');
+        }
         const why = $('.why', card);
         if (why) why.addEventListener('click', () => togglePeek(id, true));
       }
@@ -301,7 +392,7 @@
     else if (w.phase === 'find') html = sceneFind(w);
     else if (w.phase === 'seats') html = sceneSeats(w, animate);
     else if (w.phase === 'confirm') html = sceneWaiting(w);
-    else html = sceneTable(w);
+    else html = sceneTable(w, beat);
     el.innerHTML = html;
     el.dataset.kind = w.ended ? 'end' : w.ask ? 'ask' : w.phase;
     if (w.ask) wireAsk(w.ask);
@@ -394,7 +485,7 @@
     }).join('');
   }
 
-  function sceneTable(w) {
+  function sceneTable(w, beat) {
     const sid = w.table;
     const ov = privateOverlays(w, sid);
     const items = [];
@@ -408,6 +499,13 @@
       const votes = Object.values(w.votes[sid] || {});
       const cls = 'table' + (votes.includes('no') ? ' rejected' : '') + (w.agreed === sid ? ' agreed' : '') + (ov.clash ? ' clash' : '');
       sec.meetings.forEach((m) => items.push({ day: m.day, start: m.start, end: m.end, cls, html: `<b>${esc(sid)}</b>` }));
+      if (votes.includes('no')) {
+        const m = sec.meetings[0], fresh = beat && beat.kind === 'reply' && !beat.yes && beat.sid === sid;
+        items.push({ day: m.day, start: m.start, end: m.end, cls: 'ink' + (fresh ? ' thud' : ''), html: '<span>Declined</span>' });
+      } else if (w.agreed === sid) {
+        const m = sec.meetings[0];
+        items.push({ day: m.day, start: m.start, end: m.end, cls: 'ink ok' + (beat && beat.kind === 'agree' ? ' thud' : ''), html: '<span>Agreed</span>' });
+      }
     }
     const caption = sid
       ? `<p class="on-table"><span class="label">On the table</span> <b>${esc(sid)}</b> ${esc(sectionText(sid))}${state.run.sections[sid] ? ` · ${state.run.sections[sid].seats_left} seats left` : ''}</p>`
@@ -443,7 +541,7 @@
       const p = pos[id], nm = nameOf(id), friend = !!COLOR[id];
       const lx = p.x + Math.cos(p.a) * (NR + 16), ly = p.y + Math.sin(p.a) * (NR + 16) + 5;
       const ok = friend ? sw.done : w.holderYes[id];
-      svg += `<circle cx="${p.x}" cy="${p.y}" r="${NR}" class="node${friend ? ' friend' : ''}" style="fill:${colorOf(id)}"/>` +
+      svg += `<circle cx="${p.x}" cy="${p.y}" r="${NR}" class="node${friend ? ' friend' : ''}" data-node="${esc(id)}" style="fill:${colorOf(id)}"/>` +
         `<text x="${p.x}" y="${p.y + 7}" text-anchor="middle" class="initial">${esc(nm[0])}</text>` +
         `<text x="${lx}" y="${ly}" text-anchor="${Math.abs(Math.cos(p.a)) < 0.3 ? 'middle' : Math.cos(p.a) > 0 ? 'start' : 'end'}" class="name">${esc(nm)}${ok ? ' ✓' : ''}</text>`;
     });
@@ -737,7 +835,7 @@
 
   function renderPresets() {
     $('#presets').innerHTML = state.presets.map((p) =>
-      `<button type="button" class="preset" role="radio" aria-checked="${p.id === state.presetId}" data-id="${esc(p.id)}"><strong>${esc(p.name)}</strong><span>${esc(p.blurb)}</span></button>`).join('');
+      `<button type="button" class="preset" role="radio" aria-checked="${p.id === state.presetId}" data-id="${esc(p.id)}"><span class="preset-art" aria-hidden="true">${Art.presetArt(p.id)}</span><strong>${esc(p.name)}</strong><span class="blurb">${esc(p.blurb)}</span></button>`).join('');
     $$('#presets .preset').forEach((b) => b.addEventListener('click', () => { selectPreset(b.dataset.id, true); $('#stage').scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth' }); }));
   }
 
@@ -779,20 +877,30 @@
   function renderPrivacy() {
     const r = state.run;
     const tabs = $('#priv-tabs');
-    tabs.innerHTML = r.students.map((s) => `<button type="button" class="tab" role="tab" aria-selected="${s.id === state.who}" data-id="${esc(s.id)}">${esc(s.name)}</button>`).join('');
+    tabs.innerHTML = r.students.map((s) => `<button type="button" class="tab" role="tab" aria-selected="${s.id === state.who}" data-id="${esc(s.id)}" style="--c:${colorOf(s.id)}">${esc(s.name)}</button>`).join('');
     $$('.tab', tabs).forEach((b) => b.addEventListener('click', () => { state.who = b.dataset.id; renderPrivacy(); }));
     const s = r.students.find((x) => x.id === state.who) || r.students[0];
     const fields = r.audit.shared_fields[s.id] || [];
-    $('#privacy').innerHTML = `<div class="priv">
-      <div class="box vault"><h3>Stayed inside ${esc(s.name)}'s agent</h3><dl>
-        <dt>GPA</dt><dd>${esc(s.private.gpa)}</dd>
-        <dt>Transcript</dt><dd>${esc(s.private.transcript.join(', '))}</dd>
-        <dt>Busy time</dt><dd>${s.private.busy.length ? esc(s.private.busy.join('; ')) : 'None'}</dd>
-        <dt>Rules</dt><dd><ul>${s.private.rules.map((x) => `<li>${esc(ruleLabel(x))} (${x.hard ? 'hard rule' : 'preference, importance ' + x.priority})</li>`).join('')}</ul></dd></dl></div>
-      <div class="box"><h3>All that ever left it</h3>
-        <div class="chips">${fields.map((f) => `<span class="chip">${esc(f)}</span>`).join('')}</div>
-        <p>Those are the only message fields ${esc(s.name)}'s agent ever sent. Free time went out as bare windows. Declines went out with no reason at all.</p></div>
-      <p class="audit">The engine scanned all <b>${r.audit.messages}</b> messages for <b>${r.audit.private_values}</b> private values (every GPA, transcript entry and busy-time label). Found: <b>${r.audit.leaks}</b>.</p></div>`;
+    const secrets = [
+      ['GPA', s.private.gpa],
+      ['Transcript', s.private.transcript.join(', ')],
+      ...s.private.busy.map((b) => ['Busy', b]),
+      ...s.private.rules.map((x) => [x.hard ? 'Hard rule' : 'Preference ' + x.priority, ruleLabel(x)]),
+    ];
+    $('#privacy').innerHTML = `<div class="audit-viz" style="--c:${colorOf(s.id)}">
+      <div class="safe">
+        <div class="safe-top"><span class="dial" aria-hidden="true"><i></i></span><div><p class="eyebrow">Locked inside</p><h3>${esc(s.name)}'s agent</h3></div><span class="who-face" aria-hidden="true">${Art.face(s.id, 'neutral', { key: 'audit' })}</span></div>
+        <ul class="secrets">${secrets.map(([k, v]) => `<li><span class="k">${esc(k)}</span><span class="v">${esc(v)}</span></li>`).join('')}</ul>
+      </div>
+      <div class="pipe" aria-label="What left the agent">
+        <p class="eyebrow">All that ever got out</p>
+        <div class="flow">${fields.map((f, i) => `<span class="chip" style="animation-delay:${i * 0.35}s">${esc(f)}</span>`).join('')}</div>
+        <p>Those are the only fields ${esc(s.name)}'s agent ever sent. Free time went out as bare windows. Declines went out with no reason at all.</p>
+      </div>
+      <div class="scan">
+        <p class="zero">${r.audit.leaks}</p>
+        <p>private values found after scanning all <b>${r.audit.messages}</b> messages for <b>${r.audit.private_values}</b> of them: every GPA, transcript entry and busy-time label.</p>
+      </div></div>`;
   }
 
   function renderLedger() {
@@ -840,6 +948,7 @@
 
   /* ---------- start ---------- */
   async function init() {
+    $('#hero-art').innerHTML = Art.heroArt(reduceMotion);
     $('#t-play').addEventListener('click', play);
     $('#t-step').addEventListener('click', step);
     $('#t-restart').addEventListener('click', () => restart(false));

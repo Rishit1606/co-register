@@ -26,6 +26,7 @@
 
   <main id="top">
     <section class="hero">
+      <div class="hero-text">
       <p class="kicker">DevHacks Fall '26 · Track 2: Agent-to-Agent Coordination</p>
       <h1>Three majors. Three private lives. <em>One class</em> they can all take.</h1>
       <p class="lede">Ana, Ben and Maya each have an AI agent that knows their schedule, their job and what they care about. The agents negotiate with each other and share only what they have to. Peek inside any agent to see what it keeps to itself. When it's time to sign, <strong>you</strong> answer for each student.</p>
@@ -33,6 +34,8 @@
         <button type="button" id="hero-play" class="btn primary big">▶ Watch them work it out</button>
         <p id="engine-status" class="status" role="status" aria-live="polite">Showing a recorded run. Loading the live engine…</p>
       </div>
+      </div>
+      <div id="hero-art" class="hero-art" aria-hidden="true"></div>
     </section>
 
     <section id="stage" class="stage" aria-label="The negotiation">
@@ -50,6 +53,7 @@
       </div>
 
       <div id="wire" class="wire" aria-live="off"></div>
+      <div id="fly" class="fly" aria-hidden="true"></div>
 
       <div class="transport" role="group" aria-label="Playback">
         <button type="button" id="t-restart" class="btn ghost">↺ Restart</button>
@@ -160,6 +164,7 @@
   </footer>
 
   <div id="confetti" class="confetti" aria-hidden="true"></div>
+  <script src="art.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
